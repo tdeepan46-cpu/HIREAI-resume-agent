@@ -1,16 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './Components/Navbar'; 
-import { Sidebar } from './components/Sidebar';
-import { ChatAgent } from './components/ChatAgent';
-import { StudentList } from './components/StudentList';
-import { ComparisonView } from './components/ComparisonView';
-import { StudentAnalysis } from './components/StudentAnalysis';
-import { CollegeAnalytics } from './components/CollegeAnalytics';
-import { JobMatcher } from './components/JobMatcher';
-import { StudentPortal } from './components/StudentPortal';
+import { Sidebar } from './Components/Sidebar';
+import { ChatAgent } from './Components/Chatagent';
+import { StudentList } from './Components/Studentlist';
+import { ComparisonView } from './Components/Comparisonview';
+import { StudentAnalysis } from './Components/Studentanalysis';
+import { CollegeAnalytics } from './Components/Collegeanalytics';
+import { JobMatcher } from './Components/Jobmatcher';
+import { StudentPortal } from './Components/Studentportal';
 import { Student } from './types';
-import { MOCK_STUDENTS } from './constants';
+import { MOCK_STUDENTS } from './Constants';
 
 const App: React.FC = () => {
   const [students, setStudents] = useState<Student[]>(() => {
