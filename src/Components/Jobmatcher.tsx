@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Student, MatchResult } from '../types';
-import { matchJobToStudents } from '../geminiService';
+import { matchJobToStudents } from '../GeminiService';
 
 interface JobMatcherProps {
   students: Student[];
