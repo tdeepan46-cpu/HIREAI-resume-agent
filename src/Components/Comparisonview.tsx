@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Student } from '../types';
-import { getComparisonVerdict } from '../geminiService';
+import { getComparisonVerdict } from '../GeminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface ComparisonViewProps {

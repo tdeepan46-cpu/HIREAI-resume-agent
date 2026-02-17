@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { extractStudentFromResume } from '../geminiService';
+import { extractStudentFromResume } from '../GeminiService';
 import { Student } from '../types';
 
 interface StudentPortalProps {

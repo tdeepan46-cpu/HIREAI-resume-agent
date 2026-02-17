@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Student } from '../types';
-import { analyzeStudent } from '../geminiService';
+import { analyzeStudent } from '../GeminiService';
 
 interface StudentAnalysisProps {
   student: Student;
