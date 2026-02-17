@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './Components/Navbar'; 
 import { Sidebar } from './Components/Sidebar';
-import { ChatAgent } from './components/ChatAgent';
+import { ChatAgent } from './Components/ChatAgent';
 import { StudentList } from './Components/Studentlist';
 import { ComparisonView } from './Components/Comparisonview';
 import { StudentAnalysis } from './Components/Studentanalysis';
@@ -164,3 +164,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
