@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './Components/Navbar'; 
 import { Sidebar } from './Components/Sidebar';
-import { ChatAgent } from './Components/Chatagent';
+import { ChatAgent } from './components/ChatAgent';
 import { StudentList } from './Components/Studentlist';
 import { ComparisonView } from './Components/Comparisonview';
 import { StudentAnalysis } from './Components/Studentanalysis';
 import { CollegeAnalytics } from './Components/Collegeanalytics';
-import { JobMatcher } from './Components/Jobmatcher';
+import { JobMatcher } from './Components/JobMatcher';
 import { StudentPortal } from './Components/Studentportal';
 import { Student } from './types';
 import { MOCK_STUDENTS } from './Constants';
