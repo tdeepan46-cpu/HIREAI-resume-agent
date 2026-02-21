@@ -1,5 +1,5 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { supabase } from '../supabaseClient';
 import { Student } from '../types';
 
 interface StudentListProps {
@@ -19,6 +19,22 @@ export const StudentList: React.FC<StudentListProps> = ({
   onAnalyze,
   selectedForCompare 
 }) => {
+  // --- AUTH & DELETE STATES ---
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [deletedIds, setDeletedIds] = useState<string[]>([]); // Keeps track of what we just deleted
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  // CHECK WHO IS LOGGED IN
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUserEmail(session.user.email || '');
+    });
+  }, []);
+
+  // ⚠️ CHANGE THIS TO YOUR EXACT ADMIN EMAIL ⚠️
+  const isAdmin = userEmail === 'tdeepan46@gmail.com'; 
+
+  // --- FILTER STATES ---
   const [searchQuery, setSearchQuery] = useState('');
   const [collegeFilter, setCollegeFilter] = useState('');
   const [majorFilter, setMajorFilter] = useState('');
@@ -28,6 +44,9 @@ export const StudentList: React.FC<StudentListProps> = ({
 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
+      // If we just deleted it, filter it out immediately
+      if (deletedIds.includes(student.id)) return false;
+
       const matchesSearch = 
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.skills.some(skill => skill.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -37,7 +56,27 @@ export const StudentList: React.FC<StudentListProps> = ({
 
       return matchesSearch && matchesCollege && matchesMajor;
     });
-  }, [students, searchQuery, collegeFilter, majorFilter]);
+  }, [students, searchQuery, collegeFilter, majorFilter, deletedIds]);
+
+  // --- DELETE FUNCTION ---
+  const handleDelete = async (id: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to permanently delete this candidate?");
+    if (!confirmDelete) return;
+
+    setIsDeleting(id);
+    
+    // Tell Supabase to delete the row
+    const { error } = await supabase.from('resumes').delete().eq('id', id);
+
+    if (error) {
+      alert("Error deleting resume: " + error.message);
+      setIsDeleting(null);
+    } else {
+      // Hide it from the UI immediately
+      setDeletedIds(prev => [...prev, id]);
+      setIsDeleting(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -53,9 +92,6 @@ export const StudentList: React.FC<StudentListProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-slate-600"
             />
-            <svg className="absolute right-3 top-3 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
           </div>
         </div>
 
@@ -87,16 +123,8 @@ export const StudentList: React.FC<StudentListProps> = ({
       {/* Results Count */}
       <div className="flex justify-between items-center px-2">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-          Showing {filteredStudents.length} of {students.length} students
+          Showing {filteredStudents.length} of {students.length - deletedIds.length} students
         </p>
-        {(searchQuery || collegeFilter || majorFilter) && (
-          <button 
-            onClick={() => {setSearchQuery(''); setCollegeFilter(''); setMajorFilter('');}}
-            className="text-[10px] font-black text-blue-500 uppercase hover:text-blue-400 transition-colors"
-          >
-            Clear Filters
-          </button>
-        )}
       </div>
 
       {/* Student Cards */}
@@ -134,9 +162,6 @@ export const StudentList: React.FC<StudentListProps> = ({
                       {skill}
                     </span>
                   ))}
-                  {student.skills.length > 4 && (
-                    <span className="text-[10px] text-slate-600 font-bold ml-1">+{student.skills.length - 4}</span>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -154,12 +179,20 @@ export const StudentList: React.FC<StudentListProps> = ({
                         : 'bg-transparent border-white/10 text-slate-300 hover:border-white/20'
                     }`}
                   >
-                    <svg className={`w-4 h-4 ${isInterested ? 'fill-current' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
                     {isInterested ? 'Following' : 'Shortlist'}
                   </button>
                 </div>
+
+                {/* THE ADMIN DELETE BUTTON */}
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDelete(student.id)}
+                    disabled={isDeleting === student.id}
+                    className="mt-3 w-full py-2 px-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl text-xs font-black hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    {isDeleting === student.id ? 'Deleting...' : 'Remove Resume'}
+                  </button>
+                )}
 
                 <button
                   onClick={() => onCompare(student.id)}
@@ -180,12 +213,6 @@ export const StudentList: React.FC<StudentListProps> = ({
       ) : (
         <div className="flex flex-col items-center justify-center p-16 border-2 border-dashed border-slate-800 rounded-[3rem] bg-slate-900/20 text-center">
           <p className="text-slate-500 font-bold">No students match your current filters.</p>
-          <button 
-            onClick={() => {setSearchQuery(''); setCollegeFilter(''); setMajorFilter('');}}
-            className="mt-4 text-sm font-bold text-blue-500 hover:underline"
-          >
-            Reset all filters
-          </button>
         </div>
       )}
     </div>
