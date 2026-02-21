@@ -64,3 +64,22 @@ export const matchJobToStudents = async (jd: string, students: Student[]): Promi
   const result = await model.generateContent(prompt);
   return JSON.parse(result.response.text());
 };
+// --- HELPER: Analyze Single Student ---
+export const analyzeStudent = async (student: Student) => {
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    generationConfig: { responseMimeType: "application/json" }
+  });
+
+  const prompt = `Analyze this student: ${JSON.stringify(student)}.
+  Return a JSON object with the following structure exactly:
+  {
+    "strengths": ["strength1", "strength2"],
+    "roles": ["role1", "role2"],
+    "growth": "areas for improvement",
+    "score": 85
+  }`;
+
+  const result = await model.generateContent(prompt);
+  return JSON.parse(result.response.text());
+};
