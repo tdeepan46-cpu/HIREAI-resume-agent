@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Student } from '../types';
-import { queryStudentAssistant } from '../geminiService';
+import { queryStudentAssistant } from '../GeminiService';
 
 interface ChatAgentProps {
   students: Student[];
