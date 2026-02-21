@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Student, MatchResult } from "./types";
 
 // 1. Setup API Key
@@ -13,7 +13,7 @@ const genAI = new GoogleGenerativeAI(apiKey || "");
 // --- HELPER: Resume Extraction ---
 export const extractStudentFromResume = async (resumeText: string): Promise<Omit<Student, 'id'>> => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-3-flash-preview",
     generationConfig: { responseMimeType: "application/json" }
   });
   
@@ -31,7 +31,7 @@ export const extractStudentFromResume = async (resumeText: string): Promise<Omit
 // --- HELPER: Compare Students ---
 export const getComparisonVerdict = async (students: Student[]) => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-3-pro-preview",
     generationConfig: { responseMimeType: "application/json" }
   });
 
@@ -44,7 +44,7 @@ export const getComparisonVerdict = async (students: Student[]) => {
 
 // --- HELPER: Chat Assistant ---
 export const queryStudentAssistant = async (query: string, students: Student[]) => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
   const prompt = `Context: ${JSON.stringify(students)}. User Query: "${query}"`;
 
   const result = await model.generateContent(prompt);
@@ -54,7 +54,7 @@ export const queryStudentAssistant = async (query: string, students: Student[]) 
 // --- HELPER: Job Matcher ---
 export const matchJobToStudents = async (jd: string, students: Student[]): Promise<MatchResult[]> => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash", 
+    model: "gemini-3-flash-preview", 
     generationConfig: { responseMimeType: "application/json" }
   });
 
@@ -64,10 +64,11 @@ export const matchJobToStudents = async (jd: string, students: Student[]): Promi
   const result = await model.generateContent(prompt);
   return JSON.parse(result.response.text());
 };
+
 // --- HELPER: Analyze Single Student ---
 export const analyzeStudent = async (student: Student) => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-3-flash-preview",
     generationConfig: { responseMimeType: "application/json" }
   });
 
