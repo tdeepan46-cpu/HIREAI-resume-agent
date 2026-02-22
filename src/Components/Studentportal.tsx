@@ -39,6 +39,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
       return;
     }
 
+    // 🛑 ARMOR PART 1: Block PDFs so the app doesn't crash!
+    if (file.type === 'application/pdf') {
+      setError("Please paste your resume into a .txt file! PDFs are not supported yet.");
+      clearInput();
+      return;
+    }
+
     setFileName(file.name);
     setIsParsing(true);
     setError(null);
@@ -57,15 +64,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
         // 2. Let Gemini AI read the resume
         const parsed = await extractStudentFromResume(content);
         
+        // 🛡️ ARMOR PART 2: Make sure skills is always a safe array!
+        const safeSkills = Array.isArray(parsed.skills) 
+          ? parsed.skills 
+          : (typeof parsed.skills === 'string' ? parsed.skills.split(',') : ['No skills listed']);
+
         // 3. Package the AI data for our Database
         const newResume = {
           user_id: userId, // 🔒 Lock it to this specific user!
-          name: parsed.name,
-          college: parsed.college,
-          major: parsed.major,
+          name: parsed.name || 'Unknown Candidate',
+          college: parsed.college || 'Unknown College',
+          major: parsed.major || 'Unknown Major',
           cgpa: Number(parsed.cgpa) || 0, // Ensure CGPA is a number for the database
-          skills: parsed.skills,
-          summary: parsed.summary
+          skills: safeSkills, // Use the safe array
+          summary: parsed.summary || 'No summary generated.'
         };
 
         // 4. Save to Supabase securely
@@ -126,7 +138,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
             ref={fileInputRef} 
             onChange={handleFileUpload} 
             className="hidden" 
-            accept=".txt,.pdf,.doc,.docx"
+            accept=".txt" // Changed to only accept .txt files!
           />
           
           <div className="relative">
@@ -144,9 +156,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
 
           <div className="text-center space-y-2">
             <h3 className="text-xl font-extrabold text-white">
-              {isParsing ? "AI is reading your resume..." : fileName || "Click to upload or drag resume here"}
+              {isParsing ? "AI is reading your resume..." : fileName || "Click to upload a .txt resume"}
             </h3>
-            <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Supports PDF, DOCX, or TXT files</p>
+            <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Supports TXT files</p>
           </div>
 
           {error && (
@@ -163,7 +175,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
              </div>
              <div>
                <p className="text-sm font-bold text-slate-200">Upload File</p>
-               <p className="text-[11px] text-slate-500">Pick your resume from your computer.</p>
+               <p className="text-[11px] text-slate-500">Pick your .txt resume from your computer.</p>
              </div>
           </div>
           <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 flex flex-col items-center text-center gap-3">
