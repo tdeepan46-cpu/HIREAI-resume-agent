@@ -1,6 +1,6 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { extractStudentFromResume } from '../GeminiService';
+import { supabase } from '../supabaseClient';
 import { Student } from '../types';
 
 interface StudentPortalProps {
@@ -8,10 +8,20 @@ interface StudentPortalProps {
 }
 
 export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) => {
+  // --- USER AUTH STATE ---
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [isParsing, setIsParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 1. Grab the secure logged-in user ID when the page loads
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
 
   const clearInput = () => {
     if (fileInputRef.current) {
@@ -22,6 +32,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Safety check: Make sure they are logged in before parsing
+    if (!userId) {
+      setError("Error: You must be logged in to upload a resume.");
+      return;
+    }
 
     setFileName(file.name);
     setIsParsing(true);
@@ -38,14 +54,37 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
       }
 
       try {
+        // 2. Let Gemini AI read the resume
         const parsed = await extractStudentFromResume(content);
-        const newStudent: Student = {
-          ...parsed,
-          id: Math.random().toString(36).substr(2, 9),
+        
+        // 3. Package the AI data for our Database
+        const newResume = {
+          user_id: userId, // 🔒 Lock it to this specific user!
+          name: parsed.name,
+          college: parsed.college,
+          major: parsed.major,
+          cgpa: Number(parsed.cgpa) || 0, // Ensure CGPA is a number for the database
+          skills: parsed.skills,
+          summary: parsed.summary
         };
-        onAddStudent(newStudent);
-      } catch (err) {
-        setError('We had trouble reading your resume. Please make sure it is a clear text file or PDF.');
+
+        // 4. Save to Supabase securely
+        const { data, error: dbError } = await supabase
+          .from('resumes')
+          .insert([newResume])
+          .select();
+
+        if (dbError) {
+          throw new Error(dbError.message);
+        }
+
+        if (data && data.length > 0) {
+          alert("Success! Your AI-parsed resume is saved securely to the database.");
+          onAddStudent(data[0] as Student); // Add the real database record to the UI
+        }
+
+      } catch (err: any) {
+        setError(err.message || 'We had trouble reading or saving your resume. Please make sure it is a clear text file.');
       } finally {
         setIsParsing(false);
         clearInput();
@@ -71,7 +110,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-blue-600/10 blur-[60px] rounded-full pointer-events-none"></div>
         <h2 className="text-5xl font-black text-white tracking-tighter">Student Resume Upload</h2>
         <p className="text-slate-400 text-lg max-w-xl mx-auto font-medium">
-          Upload your resume below. Our system will read it and create a professional profile for you in just a few seconds.
+          Upload your resume below. Our AI system will read it and securely save your professional profile to the database.
         </p>
       </div>
 
@@ -105,7 +144,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
 
           <div className="text-center space-y-2">
             <h3 className="text-xl font-extrabold text-white">
-              {isParsing ? "Reading your resume..." : fileName || "Click to upload or drag resume here"}
+              {isParsing ? "AI is reading your resume..." : fileName || "Click to upload or drag resume here"}
             </h3>
             <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Supports PDF, DOCX, or TXT files</p>
           </div>
@@ -142,7 +181,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
              </div>
              <div>
                <p className="text-sm font-bold text-slate-200">Get Listed</p>
-               <p className="text-[11px] text-slate-500">You are now ready to be found by companies!</p>
+               <p className="text-[11px] text-slate-500">You are securely added to the database!</p>
              </div>
           </div>
         </div>
