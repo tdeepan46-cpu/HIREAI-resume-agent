@@ -51,6 +51,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
     try {
       let aiInput: string | { inlineData: { data: string, mimeType: string } };
 
+      // 1. Convert file to AI-readable format
       if (isPDF) {
         aiInput = await new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -85,34 +86,40 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
         });
       }
 
+      // 🧠 2. Get cleaned JSON from Gemini
       const parsed = await extractStudentFromResume(aiInput);
       
-      const safeSkills = Array.isArray(parsed.skills) 
-        ? parsed.skills 
-        : (typeof parsed.skills === 'string' ? parsed.skills.split(',') : ['No skills listed']);
-
+      // 🛡️ 3. SANITIZATION: Ensure every field is valid for Supabase
       const newResume = {
         user_id: userId,
         name: parsed.name || 'Unknown Candidate',
-        college: parsed.college || 'Unknown College',
-        major: parsed.major || 'Unknown Major',
+        college: parsed.college || 'N/A',
+        major: parsed.major || 'General',
         cgpa: Number(parsed.cgpa) || 0,
-        skills: safeSkills,
-        summary: parsed.summary || 'No summary generated.'
+        skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+        summary: parsed.summary || 'Uploaded via AI Resume Portal'
       };
 
-      const { data, error: dbError } = await supabase.from('resumes').insert([newResume]).select();
+      // 🚀 4. Send to Database
+      const { data, error: dbError } = await supabase
+        .from('resumes')
+        .insert([newResume])
+        .select();
 
-      if (dbError) throw new Error(dbError.message);
+      if (dbError) {
+        // Log the exact database error for troubleshooting
+        console.error("SUPABASE DATABASE ERROR:", dbError);
+        throw new Error(dbError.message);
+      }
 
       if (data && data.length > 0) {
-        alert("Success! Your AI-parsed resume is saved securely to the database.");
+        alert("Success! Your resume is now in the database.");
         onAddStudent(data[0] as Student);
       }
 
     } catch (err: any) {
-      console.error(err);
-      setError('We had trouble reading or saving your resume. Please try a different file.');
+      console.error("FULL UPLOAD ERROR:", err);
+      setError(`Upload Failed: ${err.message || 'Check browser console for details'}`);
     } finally {
       setIsParsing(false);
       clearInput();
