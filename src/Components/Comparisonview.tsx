@@ -86,7 +86,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ selectedStudents
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {verdict.comparisonPoints.map(point => {
+                {verdict.comparisonPoints?.map(point => {
                   const s = selectedStudents.find(st => st.id === point.id);
                   const isWinner = s?.id === verdict.winnerId;
                   return (
@@ -99,13 +99,13 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ selectedStudents
                         <div>
                           <p className="text-[10px] uppercase font-black text-green-400 mb-2">Key Strengths</p>
                           <ul className="text-xs space-y-1.5">
-                            {point.pros.map((p: string, i: number) => <li key={i} className="flex gap-2"><span>•</span>{p}</li>)}
+                           {point.pros?.map((p: string, i: number) => <li key={i} className="flex gap-2"><span>•</span>{p}</li>)}
                           </ul>
                         </div>
                         <div>
                           <p className="text-[10px] uppercase font-black text-rose-400 mb-2">Risks / Gaps</p>
                           <ul className="text-xs space-y-1.5">
-                            {point.cons.map((p: string, i: number) => <li key={i} className="flex gap-2"><span>•</span>{p}</li>)}
+                            {point.cons?.map((p: string, i: number) => <li key={i} className="flex gap-2"><span>•</span>{p}</li>)}
                           </ul>
                         </div>
                       </div>
@@ -157,7 +157,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ selectedStudents
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Key Competencies</p>
                 <div className="flex flex-wrap gap-2">
-                  {s.skills.map(skill => (
+                  {s.skills?.map(skill => (
                     <span key={skill} className="text-[11px] font-bold px-3 py-1 bg-slate-50 border rounded-xl">{skill}</span>
                   ))}
                 </div>
@@ -166,7 +166,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ selectedStudents
               <div className="pt-6 border-t">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Flagship Projects</p>
                 <div className="space-y-2">
-                  {s.projects.map(p => (
+                  {s.projects?.map(p => (
                     <div key={p} className="text-sm font-medium text-slate-700 bg-slate-50 p-3 rounded-2xl border-l-4 border-blue-500">
                       {p}
                     </div>
