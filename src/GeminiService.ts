@@ -51,8 +51,28 @@ export const extractStudentFromResume = async (fileData: string | { inlineData: 
 // --- HELPER: Compare Students ---
 export const getComparisonVerdict = async (students: Student[]) => {
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Compare these students: ${JSON.stringify(students)}. Return JSON: { "winnerId": "str", "reasoning": "str", "comparisonPoints": ["str"] }`;
-  
+  const prompt = `
+    Compare these candidates: ${JSON.stringify(students)}. 
+    You MUST return ONLY a valid JSON object. Do not include markdown formatting or backticks.
+    
+    Required JSON Structure:
+    {
+      "winnerId": "exact id of the best student",
+      "reasoning": "A solid paragraph explaining why they are the better choice.",
+      "comparisonPoints": [
+        {
+          "id": "exact id of the first student",
+          "pros": ["Strong cloud skills", "AWS certified"],
+          "cons": ["Less experience in Java", "Needs more project work"]
+        },
+        {
+          "id": "exact id of the second student",
+          "pros": ["Strong core programming", "Good foundation"],
+          "cons": ["Lacks cloud exposure", "No specialized certifications"]
+        }
+      ]
+    }
+  `;
   const result = await model.generateContent(prompt);
   const text = cleanAIResponse(result.response.text());
   return JSON.parse(text);
