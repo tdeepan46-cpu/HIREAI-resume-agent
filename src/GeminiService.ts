@@ -11,7 +11,7 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
 // 3. Define the standard, stable model name
-const MODEL_NAME = "gemini-1.5-flash"; 
+const MODEL_NAME = "gemini-2.5-flash";
 
 // Helper to strip markdown formatting from AI JSON responses
 const cleanAIResponse = (text: string) => {
