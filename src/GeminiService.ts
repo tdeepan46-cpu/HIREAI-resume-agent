@@ -76,12 +76,25 @@ export const matchJobToStudents = async (jd: string, students: Student[]): Promi
   const text = cleanAIResponse(result.response.text());
   return JSON.parse(text);
 };
-
 // --- HELPER: Student Deep Analysis ---
-export const analyzeStudent = async (student: Student): Promise<string> => {
+export const analyzeStudent = async (student: Student): Promise<any> => {
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Analyze this profile: ${JSON.stringify(student)}. Provide a professional recruiter report.`;
+  
+  const prompt = `
+    Analyze this candidate profile: ${JSON.stringify(student)}. 
+    You MUST return ONLY a valid JSON object. 
+    Do not use markdown formatting. Do not include extra text.
+    
+    Required JSON Structure:
+    {
+      "strengths": ["strength 1", "strength 2", "strength 3"],
+      "roles": ["Recommended Job 1", "Recommended Job 2"],
+      "growth": "A short paragraph explaining one key area they need to improve.",
+      "score": 85
+    }
+  `;
   
   const result = await model.generateContent(prompt);
-  return result.response.text();
+  const text = cleanAIResponse(result.response.text());
+  return JSON.parse(text);
 };

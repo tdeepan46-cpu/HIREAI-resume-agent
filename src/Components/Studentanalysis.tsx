@@ -94,7 +94,7 @@ export const StudentAnalysis: React.FC<StudentAnalysisProps> = ({ student, onBac
                 <div>
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Key Strengths</h4>
                   <ul className="space-y-2">
-                    {analysis.strengths.map((s, i) => (
+                    {analysis.strengths?.map((s, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                         <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0"></span>
                         {s}
@@ -105,7 +105,7 @@ export const StudentAnalysis: React.FC<StudentAnalysisProps> = ({ student, onBac
                 <div>
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Ideal Roles</h4>
                   <div className="flex flex-wrap gap-2">
-                    {analysis.roles.map((r, i) => (
+                   {analysis.roles?.map((r, i) => (
                       <span key={i} className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-100">
                         {r}
                       </span>
