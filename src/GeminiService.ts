@@ -72,3 +72,21 @@ export const matchJobToStudents = async (jd: string, students: Student[]): Promi
   const result = await model.generateContent(prompt);
   return JSON.parse(result.response.text());
 };
+// --- HELPER: Student Deep Analysis ---
+export const analyzeStudent = async (student: Student): Promise<string> => {
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  
+  const prompt = `
+    Perform a professional recruiter analysis on this candidate profile:
+    ${JSON.stringify(student)}
+    
+    Format the response nicely with headings and bullet points. Include:
+    1. Key Strengths & Highlights
+    2. Areas for Improvement / Skill Gaps
+    3. Recommended Job Roles based on their profile
+    4. 3 challenging technical interview questions to ask them
+  `;
+
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+};
