@@ -10,11 +10,9 @@ if (!apiKey) {
 // 2. Initialize the AI
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
-// --- HELPER: Resume Extraction ---
-// Upgraded to accept either a text string OR a PDF Base64 object!
 export const extractStudentFromResume = async (fileData: string | { inlineData: { data: string, mimeType: string } }): Promise<Omit<Student, 'id'>> => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-1.5-flash-latest", // 👈 Changed this!
     generationConfig: { responseMimeType: "application/json" }
   });
   
@@ -23,7 +21,6 @@ export const extractStudentFromResume = async (fileData: string | { inlineData: 
     Required fields: name, college, major, skills (array), experience (number), specialization, summary, projects (array), cgpa (number), email.
   `;
 
-  // If it is text (TXT/DOCX), we pass it as a string. If it's a PDF object, we pass the object.
   const parts: any[] = [prompt];
   if (typeof fileData === 'string') {
     parts.push(`Resume Text: "${fileData}"`);
@@ -39,7 +36,7 @@ export const extractStudentFromResume = async (fileData: string | { inlineData: 
 // --- HELPER: Compare Students ---
 export const getComparisonVerdict = async (students: Student[]) => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-1.5-flash-latest",
     generationConfig: { responseMimeType: "application/json" }
   });
 
@@ -52,7 +49,7 @@ export const getComparisonVerdict = async (students: Student[]) => {
 
 // --- HELPER: Chat Assistant ---
 export const queryStudentAssistant = async (query: string, students: Student[]) => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   const prompt = `Context: ${JSON.stringify(students)}. User Query: "${query}"`;
 
   const result = await model.generateContent(prompt);
@@ -62,7 +59,7 @@ export const queryStudentAssistant = async (query: string, students: Student[]) 
 // --- HELPER: Job Matcher ---
 export const matchJobToStudents = async (jd: string, students: Student[]): Promise<MatchResult[]> => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash", 
+    model: "gemini-1.5-flash-latest", 
     generationConfig: { responseMimeType: "application/json" }
   });
 
@@ -74,7 +71,7 @@ export const matchJobToStudents = async (jd: string, students: Student[]): Promi
 };
 // --- HELPER: Student Deep Analysis ---
 export const analyzeStudent = async (student: Student): Promise<string> => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   
   const prompt = `
     Perform a professional recruiter analysis on this candidate profile:
