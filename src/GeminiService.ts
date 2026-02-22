@@ -88,10 +88,23 @@ export const queryStudentAssistant = async (query: string, students: Student[]) 
 };
 
 // --- HELPER: Job Matcher ---
-export const matchJobToStudents = async (jd: string, students: Student[]): Promise<MatchResult[]> => {
+export const matchJobToStudents = async (jd: string, students: Student[]): Promise<any[]> => {
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Match JD: "${jd}" against these students: ${JSON.stringify(students)}. Return JSON array.`;
-  
+  const prompt = `
+    Match this Job Description: "${jd}" against these students: ${JSON.stringify(students)}. 
+    You MUST return ONLY a valid JSON array of objects. Do not include markdown formatting.
+    
+    Required JSON Array Structure:
+    [
+      {
+        "studentId": "exact id of the student",
+        "score": 85,
+        "matchingSkills": ["Matched Skill 1", "Matched Skill 2"],
+        "missingSkills": ["Missing Skill 1", "Missing Skill 2"],
+        "reasoning": "A brief explanation of why they scored this match percentage."
+      }
+    ]
+  `;
   const result = await model.generateContent(prompt);
   const text = cleanAIResponse(result.response.text());
   return JSON.parse(text);

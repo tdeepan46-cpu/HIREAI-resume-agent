@@ -90,7 +90,7 @@ export const JobMatcher: React.FC<JobMatcherProps> = ({ students, onShortlist })
                     <div>
                       <p className="text-[10px] font-bold text-green-600 uppercase mb-2">Matched Skills</p>
                       <div className="flex flex-wrap gap-1">
-                        {res.matchingSkills.map(s => (
+                        {res.matchingSkills?.map(s => (
                           <span key={s} className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold rounded-lg border border-green-100">{s}</span>
                         ))}
                       </div>
@@ -98,7 +98,7 @@ export const JobMatcher: React.FC<JobMatcherProps> = ({ students, onShortlist })
                     <div>
                       <p className="text-[10px] font-bold text-rose-600 uppercase mb-2">Missing Skills</p>
                       <div className="flex flex-wrap gap-1">
-                        {res.missingSkills.map(s => (
+                        {res.missingSkills?.map(s => (
                           <span key={s} className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-lg border border-rose-100">{s}</span>
                         ))}
                       </div>
