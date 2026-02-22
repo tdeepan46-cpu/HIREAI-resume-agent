@@ -3,79 +3,44 @@ import { Student, MatchResult } from "./types";
 
 // 1. Setup API Key
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-if (!apiKey) {
-    console.error("API Key is missing! Ensure VITE_GEMINI_API_KEY is set in Vercel.");
-}
 
-// 2. Initialize the AI
+// 2. Initialize the AI - FORCING STABLE VERSION
 const genAI = new GoogleGenerativeAI(apiKey || "");
-const MODEL_NAME = "gemini-1.5-flash";
 
-// Helper to clean AI response (removes ```json ... ``` blocks)
+// Helper to clean AI response
 const cleanAIResponse = (text: string) => {
   return text.replace(/```json/g, "").replace(/```/g, "").trim();
 };
 
 // --- HELPER: Resume Extraction ---
 export const extractStudentFromResume = async (fileData: string | { inlineData: { data: string, mimeType: string } }): Promise<Omit<Student, 'id'>> => {
+  // 🌟 THE FIX: We explicitly tell it to use 'v1' instead of 'v1beta'
   const model = genAI.getGenerativeModel({ 
-    model: MODEL_NAME,
-    generationConfig: { responseMimeType: "application/json" }
-  });
+    model: "gemini-1.5-flash" 
+  }, { apiVersion: 'v1' }); 
   
   const prompt = `
-    Extract student data from the resume. 
-    IMPORTANT: You MUST return a valid JSON object. 
-    If a field is missing, use these exact defaults:
-    - name: "Candidate Name"
-    - college: "Not Specified"
-    - major: "Not Specified"
-    - skills: []
-    - experience: 0
-    - specialization: "General"
-    - summary: "AI-Generated profile"
-    - projects: []
-    - cgpa: 0.0
-    - email: "not@provided.com"
-    
-    Required JSON Schema:
-    {
-      "name": "string",
-      "college": "string",
-      "major": "string",
-      "skills": ["string"],
-      "experience": number,
-      "specialization": "string",
-      "summary": "string",
-      "projects": ["string"],
-      "cgpa": number,
-      "email": "string"
-    }
+    Extract student data from the resume. Return valid JSON only.
+    Defaults: name: "Unknown", cgpa: 0, skills: [], email: "n/a".
+    Schema: { "name": "str", "college": "str", "major": "str", "skills": [], "experience": 0, "specialization": "str", "summary": "str", "projects": [], "cgpa": 0, "email": "str" }
   `;
 
   const parts: any[] = [prompt];
   if (typeof fileData === 'string') {
-    parts.push(fileData);
+    parts.push(`Resume Text: "${fileData}"`);
   } else {
     parts.push(fileData);
   }
 
   const result = await model.generateContent(parts);
   const text = cleanAIResponse(result.response.text());
-  
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    console.error("Failed to parse AI JSON:", text);
-    throw new Error("AI returned invalid data format.");
-  }
+  return JSON.parse(text);
 };
 
 // --- HELPER: Compare Students ---
 export const getComparisonVerdict = async (students: Student[]) => {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Compare these students and pick a winner: ${JSON.stringify(students)}. 
-  Return ONLY a JSON object: { "winnerId": string, "reasoning": string, "comparisonPoints": [] }`;
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+  const prompt = `Compare: ${JSON.stringify(students)}. Return JSON: { "winnerId": "str", "reasoning": "str", "comparisonPoints": [] }`;
   const result = await model.generateContent(prompt);
   const text = cleanAIResponse(result.response.text());
   return JSON.parse(text);
@@ -83,17 +48,16 @@ export const getComparisonVerdict = async (students: Student[]) => {
 
 // --- HELPER: Chat Assistant ---
 export const queryStudentAssistant = async (query: string, students: Student[]) => {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Context: ${JSON.stringify(students)}. User Query: "${query}"`;
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+  const prompt = `Context: ${JSON.stringify(students)}. Query: "${query}"`;
   const result = await model.generateContent(prompt);
   return result.response.text();
 };
 
 // --- HELPER: Job Matcher ---
 export const matchJobToStudents = async (jd: string, students: Student[]): Promise<MatchResult[]> => {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Match this JD: "${jd}" against these students: ${JSON.stringify(students)}. 
-  Return ONLY a JSON array of MatchResult objects.`;
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+  const prompt = `Match JD: "${jd}" against: ${JSON.stringify(students)}. Return JSON array.`;
   const result = await model.generateContent(prompt);
   const text = cleanAIResponse(result.response.text());
   return JSON.parse(text);
@@ -101,8 +65,8 @@ export const matchJobToStudents = async (jd: string, students: Student[]): Promi
 
 // --- HELPER: Student Deep Analysis ---
 export const analyzeStudent = async (student: Student): Promise<string> => {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  const prompt = `Analyze this student: ${JSON.stringify(student)}. Provide a professional recruiter report with strengths, gaps, and job roles.`;
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+  const prompt = `Analyze: ${JSON.stringify(student)}. Provide recruiter report.`;
   const result = await model.generateContent(prompt);
   return result.response.text();
 };
