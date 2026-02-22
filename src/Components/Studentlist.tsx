@@ -19,37 +19,37 @@ export const StudentList: React.FC<StudentListProps> = ({
   onAnalyze,
   selectedForCompare 
 }) => {
-  // --- AUTH & DELETE STATES ---
   const [userEmail, setUserEmail] = useState<string>('');
-  const [deletedIds, setDeletedIds] = useState<string[]>([]); // Keeps track of what we just deleted
+  const [deletedIds, setDeletedIds] = useState<string[]>([]); 
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // CHECK WHO IS LOGGED IN
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setUserEmail(session.user.email || '');
     });
   }, []);
 
-  // ⚠️ CHANGE THIS TO YOUR EXACT ADMIN EMAIL ⚠️
   const isAdmin = userEmail === 'tdeepan46@gmail.com'; 
 
-  // --- FILTER STATES ---
   const [searchQuery, setSearchQuery] = useState('');
   const [collegeFilter, setCollegeFilter] = useState('');
   const [majorFilter, setMajorFilter] = useState('');
 
-  const colleges = useMemo(() => Array.from(new Set(students.map(s => s.college))), [students]);
-  const majors = useMemo(() => Array.from(new Set(students.map(s => s.major))), [students]);
+  // 🛡️ SAFEGUARD 1: Prevent college/major dropdown crashes
+  const colleges = useMemo(() => Array.from(new Set(students.map(s => s.college || 'Unknown'))), [students]);
+  const majors = useMemo(() => Array.from(new Set(students.map(s => s.major || 'Unknown'))), [students]);
 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
-      // If we just deleted it, filter it out immediately
       if (deletedIds.includes(student.id)) return false;
 
+      // 🛡️ SAFEGUARD 2: Add safe fallbacks so undefined data never triggers crashes
+      const safeName = student.name || "Unknown Candidate";
+      const safeSkills = Array.isArray(student.skills) ? student.skills : [];
+
       const matchesSearch = 
-        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.skills.some(skill => skill.toLowerCase().includes(searchQuery.toLowerCase()));
+        safeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        safeSkills.some(skill => (skill || "").toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchesCollege = collegeFilter === '' || student.college === collegeFilter;
       const matchesMajor = majorFilter === '' || student.major === majorFilter;
@@ -58,21 +58,18 @@ export const StudentList: React.FC<StudentListProps> = ({
     });
   }, [students, searchQuery, collegeFilter, majorFilter, deletedIds]);
 
-  // --- DELETE FUNCTION ---
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm("Are you sure you want to permanently delete this candidate?");
     if (!confirmDelete) return;
 
     setIsDeleting(id);
     
-    // Tell Supabase to delete the row
     const { error } = await supabase.from('resumes').delete().eq('id', id);
 
     if (error) {
       alert("Error deleting resume: " + error.message);
       setIsDeleting(null);
     } else {
-      // Hide it from the UI immediately
       setDeletedIds(prev => [...prev, id]);
       setIsDeleting(null);
     }
@@ -80,7 +77,6 @@ export const StudentList: React.FC<StudentListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Filter Controls */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-900/40 border border-white/5 rounded-[2rem] backdrop-blur-sm">
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Search Candidates</label>
@@ -120,46 +116,47 @@ export const StudentList: React.FC<StudentListProps> = ({
         </div>
       </div>
 
-      {/* Results Count */}
       <div className="flex justify-between items-center px-2">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
           Showing {filteredStudents.length} of {students.length - deletedIds.length} students
         </p>
       </div>
 
-      {/* Student Cards */}
       {filteredStudents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredStudents.map((student) => {
             const isSelected = selectedForCompare.includes(student.id);
             const isInterested = interestList.includes(student.id);
+            
+            // 🛡️ SAFEGUARD 3: Safe array mapping for UI rendering
+            const safeSkills = Array.isArray(student.skills) ? student.skills : [];
 
             return (
               <div key={student.id} className="group relative bg-slate-900/40 border border-white/5 rounded-[2.5rem] p-8 hover:bg-slate-900/60 hover:border-blue-500/30 transition-all duration-500 shadow-2xl">
                 <div className="flex justify-between items-start mb-6">
                   <div className="space-y-1">
                     <h3 className="font-extrabold text-2xl text-white tracking-tight group-hover:text-blue-400 transition-colors">
-                      {student.name}
+                      {student.name || 'Unknown Candidate'}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">{student.college}</span>
+                      <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">{student.college || 'Unknown College'}</span>
                       <div className="w-1 h-1 rounded-full bg-slate-700"></div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">{student.major}</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">{student.major || 'Unknown Major'}</span>
                     </div>
                   </div>
                   <div className="px-3 py-1 bg-slate-800 rounded-lg border border-white/5 text-[10px] font-black text-slate-400">
-                    GPA {student.cgpa}
+                    GPA {student.cgpa || 0}
                   </div>
                 </div>
 
                 <p className="text-sm text-slate-400 line-clamp-2 mb-6 font-medium leading-relaxed">
-                  {student.summary}
+                  {student.summary || 'No summary provided.'}
                 </p>
 
                 <div className="flex flex-wrap gap-2 mb-8">
-                  {student.skills.slice(0, 4).map((skill) => (
-                    <span key={skill} className="px-3 py-1 bg-blue-500/5 text-blue-400 text-[10px] font-black uppercase tracking-tighter rounded-full border border-blue-500/20">
-                      {skill}
+                  {safeSkills.slice(0, 4).map((skill, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-blue-500/5 text-blue-400 text-[10px] font-black uppercase tracking-tighter rounded-full border border-blue-500/20">
+                      {skill || 'Unknown'}
                     </span>
                   ))}
                 </div>
@@ -183,7 +180,6 @@ export const StudentList: React.FC<StudentListProps> = ({
                   </button>
                 </div>
 
-                {/* THE ADMIN DELETE BUTTON */}
                 {isAdmin && (
                   <button
                     onClick={() => handleDelete(student.id)}
