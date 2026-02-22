@@ -2,21 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { extractStudentFromResume } from '../GeminiService';
 import { supabase } from '../supabaseClient';
 import { Student } from '../types';
+import * as mammoth from 'mammoth';
 
 interface StudentPortalProps {
   onAddStudent: (student: Student) => void;
 }
 
 export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) => {
-  // --- USER AUTH STATE ---
   const [userId, setUserId] = useState<string | null>(null);
-
   const [isParsing, setIsParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Grab the secure logged-in user ID when the page loads
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUserId(user.id);
@@ -24,24 +22,24 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
   }, []);
 
   const clearInput = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Safety check: Make sure they are logged in before parsing
     if (!userId) {
       setError("Error: You must be logged in to upload a resume.");
       return;
     }
 
-    // 🛑 ARMOR PART 1: Block PDFs so the app doesn't crash!
-    if (file.type === 'application/pdf') {
-      setError("Please paste your resume into a .txt file! PDFs are not supported yet.");
+    const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isDOCX = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const isTXT = file.name.endsWith('.txt') || file.type === 'text/plain';
+
+    if (!isPDF && !isDOCX && !isTXT) {
+      setError("Please upload a .txt, .pdf, or .docx file!");
       clearInput();
       return;
     }
@@ -50,71 +48,78 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
     setIsParsing(true);
     setError(null);
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const content = event.target?.result;
-      if (typeof content !== 'string') {
-        setError("We couldn't read this file. Try a different one.");
-        setIsParsing(false);
-        clearInput();
-        return;
+    try {
+      let aiInput: string | { inlineData: { data: string, mimeType: string } };
+
+      if (isPDF) {
+        aiInput = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = (event.target?.result as string).split(',')[1];
+            resolve({ inlineData: { data: base64, mimeType: 'application/pdf' } });
+          };
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+      } else if (isDOCX) {
+        aiInput = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            try {
+              const arrayBuffer = event.target?.result as ArrayBuffer;
+              const result = await mammoth.extractRawText({ arrayBuffer });
+              resolve(result.value);
+            } catch (err) {
+              reject(err);
+            }
+          };
+          reader.onerror = (err) => reject(err);
+          reader.readAsArrayBuffer(file);
+        });
+      } else {
+        aiInput = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target?.result as string);
+          reader.onerror = (err) => reject(err);
+          reader.readAsText(file);
+        });
       }
 
-      try {
-        // 2. Let Gemini AI read the resume
-        const parsed = await extractStudentFromResume(content);
-        
-        // 🛡️ ARMOR PART 2: Make sure skills is always a safe array!
-        const safeSkills = Array.isArray(parsed.skills) 
-          ? parsed.skills 
-          : (typeof parsed.skills === 'string' ? parsed.skills.split(',') : ['No skills listed']);
+      const parsed = await extractStudentFromResume(aiInput);
+      
+      const safeSkills = Array.isArray(parsed.skills) 
+        ? parsed.skills 
+        : (typeof parsed.skills === 'string' ? parsed.skills.split(',') : ['No skills listed']);
 
-        // 3. Package the AI data for our Database
-        const newResume = {
-          user_id: userId, // 🔒 Lock it to this specific user!
-          name: parsed.name || 'Unknown Candidate',
-          college: parsed.college || 'Unknown College',
-          major: parsed.major || 'Unknown Major',
-          cgpa: Number(parsed.cgpa) || 0, // Ensure CGPA is a number for the database
-          skills: safeSkills, // Use the safe array
-          summary: parsed.summary || 'No summary generated.'
-        };
+      const newResume = {
+        user_id: userId,
+        name: parsed.name || 'Unknown Candidate',
+        college: parsed.college || 'Unknown College',
+        major: parsed.major || 'Unknown Major',
+        cgpa: Number(parsed.cgpa) || 0,
+        skills: safeSkills,
+        summary: parsed.summary || 'No summary generated.'
+      };
 
-        // 4. Save to Supabase securely
-        const { data, error: dbError } = await supabase
-          .from('resumes')
-          .insert([newResume])
-          .select();
+      const { data, error: dbError } = await supabase.from('resumes').insert([newResume]).select();
 
-        if (dbError) {
-          throw new Error(dbError.message);
-        }
+      if (dbError) throw new Error(dbError.message);
 
-        if (data && data.length > 0) {
-          alert("Success! Your AI-parsed resume is saved securely to the database.");
-          onAddStudent(data[0] as Student); // Add the real database record to the UI
-        }
-
-      } catch (err: any) {
-        setError(err.message || 'We had trouble reading or saving your resume. Please make sure it is a clear text file.');
-      } finally {
-        setIsParsing(false);
-        clearInput();
+      if (data && data.length > 0) {
+        alert("Success! Your AI-parsed resume is saved securely to the database.");
+        onAddStudent(data[0] as Student);
       }
-    };
 
-    reader.onerror = () => {
-      setError("Something went wrong while opening the file.");
+    } catch (err: any) {
+      console.error(err);
+      setError('We had trouble reading or saving your resume. Please try a different file.');
+    } finally {
       setIsParsing(false);
       clearInput();
-    };
-
-    reader.readAsText(file);
+    }
   };
 
-  const triggerInput = () => {
-    fileInputRef.current?.click();
-  };
+  const triggerInput = () => fileInputRef.current?.click();
 
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in zoom-in-95 duration-700 pb-20">
@@ -138,7 +143,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
             ref={fileInputRef} 
             onChange={handleFileUpload} 
             className="hidden" 
-            accept=".txt" // Changed to only accept .txt files!
+            accept=".txt,.pdf,.doc,.docx"
           />
           
           <div className="relative">
@@ -156,9 +161,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
 
           <div className="text-center space-y-2">
             <h3 className="text-xl font-extrabold text-white">
-              {isParsing ? "AI is reading your resume..." : fileName || "Click to upload a .txt resume"}
+              {isParsing ? "AI is reading your resume..." : fileName || "Click to upload a resume"}
             </h3>
-            <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Supports TXT files</p>
+            <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Supports PDF, DOCX, & TXT files</p>
           </div>
 
           {error && (
@@ -166,36 +171,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ onAddStudent }) =>
               {error}
             </div>
           )}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 flex flex-col items-center text-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-500">
-               <span className="text-xl">1</span>
-             </div>
-             <div>
-               <p className="text-sm font-bold text-slate-200">Upload File</p>
-               <p className="text-[11px] text-slate-500">Pick your .txt resume from your computer.</p>
-             </div>
-          </div>
-          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 flex flex-col items-center text-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-purple-600/20 flex items-center justify-center text-purple-500">
-               <span className="text-xl">2</span>
-             </div>
-             <div>
-               <p className="text-sm font-bold text-slate-200">Wait a Moment</p>
-               <p className="text-[11px] text-slate-500">Our AI reads your skills and experience.</p>
-             </div>
-          </div>
-          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 flex flex-col items-center text-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-green-600/20 flex items-center justify-center text-green-500">
-               <span className="text-xl">3</span>
-             </div>
-             <div>
-               <p className="text-sm font-bold text-slate-200">Get Listed</p>
-               <p className="text-[11px] text-slate-500">You are securely added to the database!</p>
-             </div>
-          </div>
         </div>
       </div>
     </div>

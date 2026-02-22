@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { Student, MatchResult } from "./types";
 
 // 1. Setup API Key
@@ -11,19 +11,27 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
 // --- HELPER: Resume Extraction ---
-export const extractStudentFromResume = async (resumeText: string): Promise<Omit<Student, 'id'>> => {
+// Upgraded to accept either a text string OR a PDF Base64 object!
+export const extractStudentFromResume = async (fileData: string | { inlineData: { data: string, mimeType: string } }): Promise<Omit<Student, 'id'>> => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-3-flash-preview",
+    model: "gemini-1.5-flash",
     generationConfig: { responseMimeType: "application/json" }
   });
   
   const prompt = `
-    Extract student data from the following resume text and format as JSON.
-    Resume Text: "${resumeText}"
+    Extract student data from the following resume and format as JSON.
     Required fields: name, college, major, skills (array), experience (number), specialization, summary, projects (array), cgpa (number), email.
   `;
 
-  const result = await model.generateContent(prompt);
+  // If it is text (TXT/DOCX), we pass it as a string. If it's a PDF object, we pass the object.
+  const parts: any[] = [prompt];
+  if (typeof fileData === 'string') {
+    parts.push(`Resume Text: "${fileData}"`);
+  } else {
+    parts.push(fileData);
+  }
+
+  const result = await model.generateContent(parts);
   const text = result.response.text();
   return JSON.parse(text);
 };
@@ -31,7 +39,7 @@ export const extractStudentFromResume = async (resumeText: string): Promise<Omit
 // --- HELPER: Compare Students ---
 export const getComparisonVerdict = async (students: Student[]) => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-3-pro-preview",
+    model: "gemini-1.5-flash",
     generationConfig: { responseMimeType: "application/json" }
   });
 
@@ -44,7 +52,7 @@ export const getComparisonVerdict = async (students: Student[]) => {
 
 // --- HELPER: Chat Assistant ---
 export const queryStudentAssistant = async (query: string, students: Student[]) => {
-  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `Context: ${JSON.stringify(students)}. User Query: "${query}"`;
 
   const result = await model.generateContent(prompt);
@@ -54,32 +62,12 @@ export const queryStudentAssistant = async (query: string, students: Student[]) 
 // --- HELPER: Job Matcher ---
 export const matchJobToStudents = async (jd: string, students: Student[]): Promise<MatchResult[]> => {
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-3-flash-preview", 
+    model: "gemini-1.5-flash", 
     generationConfig: { responseMimeType: "application/json" }
   });
 
   const prompt = `Match this JD: "${jd}" against these students: ${JSON.stringify(students)}. 
   Return a JSON array of MatchResult objects.`;
-
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text());
-};
-
-// --- HELPER: Analyze Single Student ---
-export const analyzeStudent = async (student: Student) => {
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-3-flash-preview",
-    generationConfig: { responseMimeType: "application/json" }
-  });
-
-  const prompt = `Analyze this student: ${JSON.stringify(student)}.
-  Return a JSON object with the following structure exactly:
-  {
-    "strengths": ["strength1", "strength2"],
-    "roles": ["role1", "role2"],
-    "growth": "areas for improvement",
-    "score": 85
-  }`;
 
   const result = await model.generateContent(prompt);
   return JSON.parse(result.response.text());

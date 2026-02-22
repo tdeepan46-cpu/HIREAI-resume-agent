@@ -5,14 +5,20 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
+ const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    // ADD THIS SAFETY CHECK:
+    if (!email || !password) return alert("Please type your email and password first!");
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) alert(error.message);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    // ADD THIS SAFETY CHECK:
+    if (!email || !password) return alert("Please type your email and password first!");
+    
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) alert(error.message);
     else alert("Account created! You can now click Log In.");
