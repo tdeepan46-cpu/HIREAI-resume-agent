@@ -22,8 +22,8 @@ This project demonstrates a practical application of AI in human resources, focu
 
 **Backend:**
 * Python
-* (Add any specific AI/NLP libraries you used here, e.g., LangChain, OpenAI API, NLTK, spaCy)
-* (Add your web framework here if applicable, e.g., Flask, FastAPI, Django)
+* Gemini AI API
+* 
 
 ## 🏗️ Architecture & Workflow
 
